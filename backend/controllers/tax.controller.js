@@ -1,43 +1,44 @@
 const Tax = require("../models/tax.model");
+const ApiError = require("../utils/ApiError");
 
-const createTax = async (req, res) => {
+const createTax = async (req, res, next) => {
     try {
         const { name, rate } = req.body;
         const tax = await Tax.create({ name, rate });
         res.status(201).json({ success: true, message: "Tax created", tax });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        next(error);
     }
 };
 
-const getTaxes = async (req, res) => {
+const getTaxes = async (req, res, next) => {
     try {
         const taxes = await Tax.find();
         res.status(200).json({ success: true, taxes });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        next(error);
     }
 };
 
-const updateTax = async (req, res) => {
+const updateTax = async (req, res, next) => {
     try {
         const { id } = req.params;
         const tax = await Tax.findByIdAndUpdate(id, req.body, { new: true });
-        if (!tax) return res.status(404).json({ success: false, message: "Tax not found" });
+        if (!tax) throw new ApiError(404, "Tax not found");
         res.status(200).json({ success: true, message: "Tax updated", tax });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        next(error);
     }
 };
 
-const deleteTax = async (req, res) => {
+const deleteTax = async (req, res, next) => {
     try {
         const { id } = req.params;
         const tax = await Tax.findByIdAndDelete(id);
-        if (!tax) return res.status(404).json({ success: false, message: "Tax not found" });
+        if (!tax) throw new ApiError(404, "Tax not found");
         res.status(200).json({ success: true, message: "Tax deleted" });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        next(error);
     }
 };
 

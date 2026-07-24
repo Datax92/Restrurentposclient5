@@ -9,7 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Search, Plus, Minus, ShoppingCart, Trash2, Banknote, CreditCard, User, Utensils, Receipt, X, Loader2, Phone } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { useReactToPrint } from 'react-to-print';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -100,11 +101,57 @@ const OrderPage = () => {
         }
     };
 
-    // Printing Logic
-    const handlePrint = useReactToPrint({
-        content: () => slipRef.current,
-        documentTitle: `Order_${lastOrder?.orderId || 'Receipt'}`,
-    });
+    // PDF Download Logic — instead of printing, download PDF directly
+    const handlePrint = async () => {
+        if (!slipRef.current) return;
+        const toastId = toast.loading("Generating receipt PDF...");
+        
+        const originalGetComputedStyle = window.getComputedStyle;
+        window.getComputedStyle = function (el, pseudoElt) {
+            const style = originalGetComputedStyle(el, pseudoElt);
+            return new Proxy(style, {
+                get(target, prop) {
+                    const val = Reflect.get(target, prop);
+                    if (typeof val === 'function') {
+                        return val.bind(target); // Fixes 'Illegal invocation' error
+                    }
+                    if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab'))) {
+                        return 'rgb(255, 255, 255)'; // receipt is light background
+                    }
+                    return val;
+                }
+            });
+        };
+
+        try {
+            const element = slipRef.current;
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: "#ffffff",
+                logging: false
+            });
+            const imgData = canvas.toDataURL("image/png");
+            
+            const pdfWidth = 80; // Standard 80mm receipt width
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            
+            const pdf = new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: [pdfWidth, pdfHeight]
+            });
+            
+            pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Receipt_${lastOrder?.orderId || 'Order'}.pdf`);
+            toast.success("Receipt downloaded as PDF", { id: toastId });
+        } catch (error) {
+            console.error("PDF generation failed:", error);
+            toast.error("Failed to generate PDF", { id: toastId });
+        } finally {
+            window.getComputedStyle = originalGetComputedStyle;
+        }
+    };
 
     // Keyboard Shortcuts
     useEffect(() => {
@@ -441,8 +488,10 @@ const OrderPage = () => {
             <Dialog open={!!lastOrder} onOpenChange={(open) => !open && resetLastOrder()}>
                 <DialogContent className="max-w-[380px] sm:max-w-[400px] w-[95vw] bg-white border-none shadow-2xl overflow-hidden p-0 rounded-3xl">
                     {/* The Receipt Itself - Thermal Printer Aesthetic */}
+                    {/* ref must be on a real DOM div OUTSIDE ScrollArea */}
+                    <div ref={slipRef} className="bg-white">
                     <ScrollArea className="max-h-[75vh] bg-white">
-                        <div ref={slipRef} className="bg-white p-6 text-black font-mono text-sm leading-tight w-full">
+                        <div className="bg-white p-6 text-black font-mono text-sm leading-tight w-full">
                             {/* Large Order Header */}
                             <div className="text-center mb-6">
                                 <h1 className="text-7xl font-bold mb-2">
@@ -559,6 +608,7 @@ const OrderPage = () => {
                             </div>
                         </div>
                     </ScrollArea>
+                    </div>
 
                     {/* Action Bar */}
                     <div className="bg-gray-100 p-4 flex gap-3 border-t border-gray-200 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
@@ -573,7 +623,7 @@ const OrderPage = () => {
                             onClick={handlePrint}
                             className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white h-12 gap-2 shadow-lg"
                         >
-                            <Receipt className="w-5 h-5" /> Print Receipt
+                            <Receipt className="w-5 h-5" /> Download PDF
                         </Button>
                     </div>
                 </DialogContent>

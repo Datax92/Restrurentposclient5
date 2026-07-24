@@ -304,7 +304,7 @@ const getOrderById = async (req, res, next) => {
             .populate("table", "name");
 
         if (!order) {
-            return res.status(404).json({ success: false, message: "Order not found" });
+            throw new ApiError(404, "Order not found");
         }
 
         res.status(200).json({ success: true, order });
@@ -349,13 +349,15 @@ const updateOrderStatus = async (req, res, next) => {
             .populate("table", "name");
 
         if (!order) {
-            return res.status(404).json({ success: false, message: "Order not found" });
+            throw new ApiError(404, "Order not found");
         }
 
-        // Emit real-time event for order status update
+        // Emit real-time event for order status update (global + per-order room)
         try {
             const io = getIo();
             io.emit("orderStatusUpdate", order);
+            // Also emit to the order-specific room so the customer tracking page updates
+            io.to(`order:${order.orderId}`).emit("orderStatusUpdate", order);
         } catch (socketError) {
             console.error("Socket.io error on orderStatusUpdate:", socketError);
         }
@@ -366,4 +368,94 @@ const updateOrderStatus = async (req, res, next) => {
     }
 };
 
-module.exports = { createOrder, getAllOrders, getOrderById, getOrderStats, updateOrderStatus, getKitchenOrders };
+// ── PUBLIC: Place order from web (no auth required) ──────────────────────────
+const placePublicOrder = async (req, res, next) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        const { clientName, clientPhone, items, type = "Takeaway", notes } = req.body;
+
+        if (!clientName || !clientPhone) {
+            return res.status(400).json({ success: false, message: "Name and phone are required." });
+        }
+        if (!items || items.length === 0) {
+            return res.status(400).json({ success: false, message: "No items in order." });
+        }
+
+        // Find or create client
+        let client = await Client.findOne({ phone: clientPhone }).session(session);
+        if (!client) {
+            [client] = await Client.create([{
+                name: clientName, phone: clientPhone,
+                totalSpent: 0, orders: [], lastVisit: new Date()
+            }], { session });
+        }
+
+        // Validate items and calculate total
+        let totalAmount = 0;
+        const validItems = [];
+        for (const item of items) {
+            const menuItem = await MenuItem.findById(item.menuItem).session(session);
+            if (!menuItem) throw new Error(`Item not found: ${item.menuItem}`);
+            const price = menuItem.price;
+            totalAmount += price * item.quantity;
+            validItems.push({ menuItem: menuItem._id, name: menuItem.name, price, quantity: item.quantity });
+        }
+
+        const orderId = `WEB-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        const newOrder = new Order({
+            orderId, type,
+            paymentMethod: "Cash",   // Pay on delivery/pickup
+            items: validItems,
+            totalAmount,
+            client: client._id,
+            clientName: client.name,
+            clientPhone: client.phone,
+            notes
+        });
+
+        await newOrder.save({ session });
+        await Client.findByIdAndUpdate(client._id, {
+            $push: { orders: newOrder._id },
+            $inc:  { totalSpent: totalAmount },
+            $set:  { lastVisit: new Date() }
+        }, { session });
+
+        await session.commitTransaction();
+        session.endSession();
+
+        const populated = await Order.findById(newOrder._id).populate("client", "name phone");
+
+        // Notify kitchen via socket
+        try {
+            const io = getIo();
+            io.emit("newOrder", populated);
+        } catch (e) { /* non-fatal */ }
+
+        res.status(201).json({ success: true, order: populated });
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        next(error);
+    }
+};
+
+// ── PUBLIC: Track order by orderId (no auth required) ────────────────────────
+const trackOrder = async (req, res, next) => {
+    try {
+        const order = await Order.findOne({ orderId: req.params.orderId })
+            .populate("table", "name")
+            .select("orderId status type items totalAmount clientName clientPhone createdAt table");
+
+        if (!order) return res.status(404).json({ success: false, message: "Order not found." });
+        res.status(200).json({ success: true, order });
+    } catch (error) {
+        next(error);
+    }
+};
+
+module.exports = {
+    createOrder, getAllOrders, getOrderById, getOrderStats,
+    updateOrderStatus, getKitchenOrders,
+    placePublicOrder, trackOrder
+};

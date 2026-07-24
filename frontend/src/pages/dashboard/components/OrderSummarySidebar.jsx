@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import { toast } from 'sonner';
 import {
     X,
     Printer,
@@ -24,6 +27,61 @@ import { motion as Motion, AnimatePresence } from 'framer-motion';
 
 
 const OrderSummarySidebar = ({ order, onClose, onUpdateStatus }) => {
+    const billRef = useRef(null);
+
+    const handleDownloadBill = async () => {
+        if (!billRef.current) return;
+        const toastId = toast.loading("Generating PDF Bill...");
+        
+        // Temporarily intercept computed style calls to strip out unsupported oklch/oklab values
+        const originalGetComputedStyle = window.getComputedStyle;
+        window.getComputedStyle = function (el, pseudoElt) {
+            const style = originalGetComputedStyle(el, pseudoElt);
+            return new Proxy(style, {
+                get(target, prop) {
+                    const val = Reflect.get(target, prop);
+                    if (typeof val === 'function') {
+                        return val.bind(target); // Fixes 'Illegal invocation' error
+                    }
+                    if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab'))) {
+                        return 'rgb(113, 113, 122)';
+                    }
+                    return val;
+                }
+            });
+        };
+
+        try {
+            const element = billRef.current;
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: "#18181b",
+                logging: false,
+                ignoreElements: (el) => el.tagName === 'BUTTON'
+            });
+            const imgData = canvas.toDataURL("image/png");
+            
+            const pdfWidth = 80;
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            
+            const pdf = new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: [pdfWidth, pdfHeight]
+            });
+            
+            pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Bill_${order.orderId || 'Order'}.pdf`);
+            toast.success("Bill downloaded as PDF", { id: toastId });
+        } catch (error) {
+            console.error("PDF generation failed:", error);
+            toast.error("Failed to generate PDF", { id: toastId });
+        } finally {
+            window.getComputedStyle = originalGetComputedStyle;
+        }
+    };
+
     if (!order) return (
         <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-6 bg-white/40 dark:bg-gray-900/40 backdrop-blur-xl rounded-[3rem] border-2 border-dashed border-gray-200 dark:border-gray-800">
             <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-full text-gray-400">
@@ -66,6 +124,7 @@ const OrderSummarySidebar = ({ order, onClose, onUpdateStatus }) => {
 
     return (
         <Motion.div
+            ref={billRef}
             initial={{ opacity: 0, x: 40, scale: 0.97 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
@@ -262,10 +321,11 @@ const OrderSummarySidebar = ({ order, onClose, onUpdateStatus }) => {
                     </Button>
                     <Button
                         variant="outline"
+                        onClick={handleDownloadBill}
                         className="h-8 rounded-lg text-[11px] font-medium border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/50 shadow-none transition-colors"
                     >
                         <Printer className="w-3.5 h-3.5 mr-1.5" />
-                        Print Bill
+                        Download PDF
                     </Button>
                 </div>
             </div>

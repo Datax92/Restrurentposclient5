@@ -1,8 +1,9 @@
 const Table = require("../models/table.model");
 const User = require("../models/user.model");
 const Client = require("../models/client.model");
+const ApiError = require("../utils/ApiError");
 
-const createTable = async (req, res) => {
+const createTable = async (req, res, next) => {
     try {
         const { name, zone, capacity } = req.body;
         const existingTable = await Table.findOne({ name });
@@ -12,50 +13,50 @@ const createTable = async (req, res) => {
         const table = await Table.create({ name, zone, capacity });
         res.status(201).json({ success: true, message: "Table created", table });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        next(error);
     }
 };
 
-const getTables = async (req, res) => {
+const getTables = async (req, res, next) => {
     try {
         const tables = await Table.find()
             .populate("person", "name email phoneNumber avatar")
             .populate("client", "name phone email avatar totalSpent");
         res.status(200).json({ success: true, tables });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        next(error);
     }
 };
 
-const updateTable = async (req, res) => {
+const updateTable = async (req, res, next) => {
     try {
         const { id } = req.params;
         const table = await Table.findByIdAndUpdate(id, req.body, { new: true });
-        if (!table) return res.status(404).json({ success: false, message: "Table not found" });
+        if (!table) throw new ApiError(404, "Table not found");
         res.status(200).json({ success: true, message: "Table updated", table });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        next(error);
     }
 };
 
-const deleteTable = async (req, res) => {
+const deleteTable = async (req, res, next) => {
     try {
         const { id } = req.params;
         const table = await Table.findByIdAndDelete(id);
-        if (!table) return res.status(404).json({ success: false, message: "Table not found" });
+        if (!table) throw new ApiError(404, "Table not found");
         res.status(200).json({ success: true, message: "Table deleted" });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        next(error);
     }
 };
 
-const reserveTable = async (req, res) => {
+const reserveTable = async (req, res, next) => {
     try {
         const { id } = req.params;
         const { bookedBy, contact, guests, date, notes } = req.body;
 
         const table = await Table.findById(id);
-        if (!table) return res.status(404).json({ success: false, message: "Table not found" });
+        if (!table) throw new ApiError(404, "Table not found");
 
         if (table.status !== "Available") {
             return res.status(400).json({ success: false, message: `Table is currently ${table.status}` });
@@ -93,8 +94,6 @@ const reserveTable = async (req, res) => {
             const user = await User.findById(req.body.userId);
             if (user) {
                 table.person = user._id;
-                // Optional: Auto-fill reservation details from user if missing?
-                // For now, we respect provided details or fallback could be added here.
             }
         }
 
@@ -102,25 +101,19 @@ const reserveTable = async (req, res) => {
 
         res.status(200).json({ success: true, message: "Table reserved successfully", table });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        next(error);
     }
 };
 
-const cancelReservation = async (req, res) => {
+const cancelReservation = async (req, res, next) => {
     try {
         const { id } = req.params;
         const table = await Table.findById(id);
 
-        if (!table) return res.status(404).json({ success: false, message: "Table not found" });
+        if (!table) throw new ApiError(404, "Table not found");
 
         if (table.status !== "Reserved") {
             return res.status(400).json({ success: false, message: "Table is not reserved" });
-        }
-
-        if (table.client) {
-            // Optional: Update client booking status to Cancelled?
-            // const client = await Client.findById(table.client);
-            // if (client) { ... }
         }
 
         table.status = "Available";
@@ -131,7 +124,7 @@ const cancelReservation = async (req, res) => {
         await table.save();
         res.status(200).json({ success: true, message: "Reservation canceled", table });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        next(error);
     }
 };
 

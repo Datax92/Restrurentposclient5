@@ -1,4 +1,7 @@
 import React, { useEffect, useRef } from 'react'
+import html2canvas from 'html2canvas'
+import { jsPDF } from 'jspdf'
+import { toast } from 'sonner'
 import {
     Card,
     CardContent,
@@ -47,8 +50,58 @@ const DashboardHome = () => {
         getStats();
     }, [getStats]);
 
-    const handlePrint = () => {
-        window.print();
+    const dashboardRef = useRef(null);
+
+    const handlePrint = async () => {
+        if (!dashboardRef.current) return;
+        const toastId = toast.loading("Generating PDF Report...");
+        
+        const originalGetComputedStyle = window.getComputedStyle;
+        window.getComputedStyle = function (el, pseudoElt) {
+            const style = originalGetComputedStyle(el, pseudoElt);
+            return new Proxy(style, {
+                get(target, prop) {
+                    const val = Reflect.get(target, prop);
+                    if (typeof val === 'function') {
+                        return val.bind(target); // Fixes 'Illegal invocation' error
+                    }
+                    if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab'))) {
+                        return 'rgb(249, 250, 251)'; // dashboard is light background
+                    }
+                    return val;
+                }
+            });
+        };
+
+        try {
+            const element = dashboardRef.current;
+            const canvas = await html2canvas(element, {
+                scale: 1.5,
+                useCORS: true,
+                backgroundColor: null,
+                logging: false,
+                ignoreElements: (el) => el.classList.contains('no-print')
+            });
+            const imgData = canvas.toDataURL("image/png");
+            
+            const pdfWidth = 210; // A4 width in mm
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            
+            const pdf = new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: [pdfWidth, pdfHeight]
+            });
+            
+            pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Dashboard_Report_${Date.now()}.pdf`);
+            toast.success("Report downloaded as PDF", { id: toastId });
+        } catch (error) {
+            console.error("PDF generation failed:", error);
+            toast.error("Failed to generate PDF", { id: toastId });
+        } finally {
+            window.getComputedStyle = originalGetComputedStyle;
+        }
     };
 
     const quickActions = [
@@ -73,7 +126,7 @@ const DashboardHome = () => {
     });
 
     return (
-        <div className="w-full min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6 dashboard-print-area">
+        <div ref={dashboardRef} className="w-full min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6 dashboard-print-area">
 
             {/* ===== PRINT HEADER (only visible when printing) ===== */}
             <div className="print-header hidden">
@@ -91,7 +144,7 @@ const DashboardHome = () => {
                         className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 active:scale-95 font-medium text-sm"
                     >
                         <Printer className="h-4 w-4" />
-                        Print Report
+                        Download PDF
                     </button>
                 </div>
                 <div className="flex gap-3 px-4 overflow-x-auto scrollbar-hide">

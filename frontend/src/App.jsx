@@ -32,6 +32,8 @@ const ManageInventory = lazy(() => import('./pages/Admin/pages/ManageInventory')
 const AdminReports = lazy(() => import('./pages/Admin/pages/AdminReports'));
 const StaffManagement = lazy(() => import('./pages/Admin/pages/StaffManagement'));
 const CustomerHistory = lazy(() => import('./pages/Admin/pages/CustomerHistory'));
+const OnlineOrder = lazy(() => import('./pages/customer/OnlineOrder'));
+const OrderTracking = lazy(() => import('./pages/customer/OrderTracking'));
 
 import ChatWidget from './components/chat/ChatWidget';
 import { Toaster } from 'sonner';
@@ -101,6 +103,17 @@ const App = () => {
           path="/signup"
           element={!authUser ? <Signup /> : <Navigate to={authUser.role === 'admin' ? "/admin" : "/"} />}
         />
+
+        <Route path="/menu" element={
+          <Suspense fallback={<PageLoader />}>
+            <OnlineOrder />
+          </Suspense>
+        } />
+        <Route path="/track/:orderId" element={
+          <Suspense fallback={<PageLoader />}>
+            <OrderTracking />
+          </Suspense>
+        } />
 
 
         <Route path="/" element={authUser ? <Dashboard /> : <Navigate to="/login" />} >

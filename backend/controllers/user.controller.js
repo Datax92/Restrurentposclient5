@@ -1,8 +1,9 @@
 const User = require("../models/user.model");
 const { validationResult } = require("express-validator");
 const genrateToken = require("../utils/genrateToken");
+const ApiError = require("../utils/ApiError");
 
-const register = async (req, res) => {
+const register = async (req, res, next) => {
     try {
         const { name, email, password, role } = req.body;
         const errors = validationResult(req);
@@ -30,15 +31,11 @@ const register = async (req, res) => {
             user
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Internal Server Error",
-            error: error.message
-        });
-        console.log(error)
+        next(error);
     }
 };
-const login = async (req, res) => {
+
+const login = async (req, res, next) => {
     try {
         const { email, password } = req.body;
         const user = await User.findOne({ email });
@@ -62,16 +59,11 @@ const login = async (req, res) => {
             user
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Internal Server Error",
-            error: error.message
-        });
-        console.log(error)
+        next(error);
     }
 };
 
-const getAllStaff = async (req, res) => {
+const getAllStaff = async (req, res, next) => {
     try {
         const staff = await User.find({ role: { $ne: 'client' } }).select('-password');
         res.status(200).json({
@@ -79,15 +71,11 @@ const getAllStaff = async (req, res) => {
             staff
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Internal Server Error",
-            error: error.message
-        });
+        next(error);
     }
 };
 
-const createNewStaff = async (req, res) => {
+const createNewStaff = async (req, res, next) => {
     try {
         const { name, email, password, role, pin, designation, permissions, shift, phoneNumber, avatar } = req.body;
         const EmailExist = await User.findOne({ email });
@@ -114,28 +102,20 @@ const createNewStaff = async (req, res) => {
             }
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Internal Server Error",
-            error: error.message
-        });
+        next(error);
     }
 };
 
-const updateStaff = async (req, res) => {
+const updateStaff = async (req, res, next) => {
     try {
         const { id } = req.params;
         const updates = req.body;
 
-        // Don't allow password update through this endpoint for now
         delete updates.password;
 
         const user = await User.findByIdAndUpdate(id, updates, { new: true }).select('-password');
         if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: "Staff not found"
-            });
+            throw new ApiError(404, "Staff not found");
         }
 
         res.status(200).json({
@@ -144,23 +124,16 @@ const updateStaff = async (req, res) => {
             user
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Internal Server Error",
-            error: error.message
-        });
+        next(error);
     }
 };
 
-const toggleStaffStatus = async (req, res) => {
+const toggleStaffStatus = async (req, res, next) => {
     try {
         const { id } = req.params;
         const user = await User.findById(id);
         if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: "Staff not found"
-            });
+            throw new ApiError(404, "Staff not found");
         }
 
         user.isActive = !user.isActive;
@@ -172,23 +145,16 @@ const toggleStaffStatus = async (req, res) => {
             isActive: user.isActive
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Internal Server Error",
-            error: error.message
-        });
+        next(error);
     }
 };
 
-const deleteStaff = async (req, res) => {
+const deleteStaff = async (req, res, next) => {
     try {
         const { id } = req.params;
         const user = await User.findByIdAndDelete(id);
         if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: "Staff not found"
-            });
+            throw new ApiError(404, "Staff not found");
         }
 
         res.status(200).json({
@@ -196,11 +162,7 @@ const deleteStaff = async (req, res) => {
             message: "Staff deleted successfully"
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Internal Server Error",
-            error: error.message
-        });
+        next(error);
     }
 };
 

@@ -36,11 +36,21 @@ const allowedOrigins = [
     "www.tastystation.vercel.app"
 ];
 
+if (process.env.ALLOWED_ORIGINS) {
+    const customOrigins = process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim());
+    allowedOrigins.push(...customOrigins);
+}
+
 app.use(cors({
     origin: function (origin, callback) {
         // allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) === -1) {
+        
+        const isAllowed = allowedOrigins.indexOf(origin) !== -1 || 
+                          origin.endsWith(".vercel.app") || 
+                          /^https?:\/\/localhost(:\d+)?$/.test(origin);
+                          
+        if (!isAllowed) {
             var msg = 'The CORS policy for this site does not allow access from the specified Origin.';
             return callback(new Error(msg), false);
         }
@@ -76,42 +86,44 @@ initSocket(server);
 app.use(express.json());
 app.use(cookieParser());
 
-app.use('/api/users', userRouter);
-app.use('/api/menu', menuRouter);
-app.use('/api/table', tableRouter);
-app.use('/api/tax', taxRouter);
-app.use('/api/discount', discountRouter);
-app.use('/api/orders', orderRouter);
-app.use('/api/inventory', inventoryRouter);
-app.use('/api/reports', reportRouter);
-app.use('/api/clients', clientRouter);
-app.use('/api/dashboard', dashboardRouter);
-app.use('/api', redisTestRouter);
+const notFoundHandler = require("./middlewares/notFound.middleware");
 const chatRouter = require("./routers/chat.router");
+
+app.get('/', (req, res) => {
+    res.json({
+        success: true,
+        message: "Welcome to the POS API"
+    });
+});
+
+app.use(['/api/users', '/api/user'], userRouter);
+app.use(['/api/menu', '/api/menus', '/api/categories', '/api/items'], menuRouter);
+app.use(['/api/table', '/api/tables'], tableRouter);
+app.use(['/api/tax', '/api/taxes'], taxRouter);
+app.use(['/api/discount', '/api/discounts'], discountRouter);
+app.use(['/api/orders', '/api/order'], orderRouter);
+app.use(['/api/inventory', '/api/inventories'], inventoryRouter);
+app.use(['/api/reports', '/api/report'], reportRouter);
+app.use(['/api/clients', '/api/client'], clientRouter);
+app.use(['/api/dashboard', '/api/dashboards'], dashboardRouter);
 app.use('/api/chat', chatRouter);
+app.use('/api', redisTestRouter);
+
+// 404 Not Found Middleware - Catch unhandled routes
+app.use(notFoundHandler);
 
 // Global Error Handler - Must be last
 app.use(errorHandler);
 
 
 if (process.env.NODE_ENV !== 'test') {
-    connectDB();
-}
-
-
-
-app.get('/', (req, res) => {
-    res.json({
-        success: true,
-        message: "Welcome to the POS API"
-    })
-})
-
-
-if (process.env.NODE_ENV !== 'test') {
-    server.listen(port, () => {
-        logger.info(`Server is running on port ${port}`);
-    });
+    (async () => {
+        await connectDB();
+        server.listen(port, () => {
+            logger.info(`Server is running on port ${port}`);
+            console.log(`[Server] Running on http://localhost:${port}`);
+        });
+    })();
 }
 
 module.exports = app;

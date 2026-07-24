@@ -10,18 +10,17 @@ const { validateCategory, validateMenuItem } = require("../middlewares/validator
 const { cacheMiddleware } = require("../middlewares/cache.middleware");
 
 // --- Category Routes ---
-// Use upload middleware to handle multipart/form-data. This populates req.body with text fields and req.file with the image.
-router.post("/category", protectedRoute, isAdmin, validateCategory, createCategory);
-router.get("/category", cacheMiddleware(3600), getAllCategories);
-router.get("/category/:id", getCategoryById);
-router.put("/category/:id", protectedRoute, isAdmin, updateCategory);
-router.delete("/category/:id", protectedRoute, isAdmin, deleteCategory);
+router.post(["/category", "/categories"], protectedRoute, isAdmin, validateCategory, createCategory);
+router.get(["/category", "/categories"], cacheMiddleware(3600), getAllCategories);
+router.get(["/category/:id", "/categories/:id"], getCategoryById);
+router.put(["/category/:id", "/categories/:id"], protectedRoute, isAdmin, updateCategory);
+router.delete(["/category/:id", "/categories/:id"], protectedRoute, isAdmin, deleteCategory);
 
 // --- Menu Item Routes ---
-router.post("/item", protectedRoute, isAdmin, validateMenuItem, createMenuItem);
-router.get("/item", cacheMiddleware(3600), getAllMenuItems);
-router.get("/item/:id", getMenuItemById);
-router.put("/item/:id", protectedRoute, isAdmin, updateMenuItem);
-router.delete("/item/:id", protectedRoute, isAdmin, deleteMenuItem);
+router.post(["/item", "/items"], protectedRoute, isAdmin, validateMenuItem, createMenuItem);
+router.get(["/item", "/items"], cacheMiddleware(3600), getAllMenuItems);
+router.get(["/item/:id", "/items/:id"], getMenuItemById);
+router.put(["/item/:id", "/items/:id"], protectedRoute, isAdmin, updateMenuItem);
+router.delete(["/item/:id", "/items/:id"], protectedRoute, isAdmin, deleteMenuItem);
 
 module.exports = router;

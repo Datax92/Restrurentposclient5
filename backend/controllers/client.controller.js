@@ -1,8 +1,8 @@
 const Client = require("../models/client.model");
-// const Order = require("../models/order.model");
+const ApiError = require("../utils/ApiError");
 
 // Get all clients with summary statistics
-exports.getAllClients = async (req, res) => {
+exports.getAllClients = async (req, res, next) => {
     try {
         const { page = 1, limit = 10 } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -30,16 +30,12 @@ exports.getAllClients = async (req, res) => {
             }
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Error fetching clients",
-            error: error.message
-        });
+        next(error);
     }
 };
 
 // Get detailed client history including all orders
-exports.getClientHistory = async (req, res) => {
+exports.getClientHistory = async (req, res, next) => {
     try {
         const { id } = req.params;
         const client = await Client.findById(id).populate({
@@ -52,10 +48,7 @@ exports.getClientHistory = async (req, res) => {
         });
 
         if (!client) {
-            return res.status(404).json({
-                success: false,
-                message: "Client not found"
-            });
+            throw new ApiError(404, "Client not found");
         }
 
         res.status(200).json({
@@ -63,39 +56,25 @@ exports.getClientHistory = async (req, res) => {
             client
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Error fetching client history",
-            error: error.message
-        });
+        next(error);
     }
 };
 
 // Delete a client
-exports.deleteClient = async (req, res) => {
+exports.deleteClient = async (req, res, next) => {
     try {
         const { id } = req.params;
         const client = await Client.findByIdAndDelete(id);
 
         if (!client) {
-            return res.status(404).json({
-                success: false,
-                message: "Client not found"
-            });
+            throw new ApiError(404, "Client not found");
         }
-
-        // Note: We might want to keep orders but remove the client reference or handle it based on business rules
-        // For now, we just delete the client record.
 
         res.status(200).json({
             success: true,
             message: "Client record deleted successfully"
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Error deleting client",
-            error: error.message
-        });
+        next(error);
     }
 };

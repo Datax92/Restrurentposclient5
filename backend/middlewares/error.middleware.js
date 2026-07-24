@@ -15,8 +15,11 @@ const errorHandler = (err, req, res, _next) => {
         error = new ApiError(statusCode, message, [], err.stack);
     }
 
-    // Capture sever errors to Winston for structured JSON logs in Vercel
-    if (error.statusCode === 500 || process.env.NODE_ENV === 'development') {
+    // Capture 404 and server errors to Winston / console for structured logs
+    if (error.statusCode === 404) {
+        logger.warn(`[404 Resource Not Found] ${req.method} ${req.originalUrl} - ${error.message}`);
+        console.error(`[404 Resource Not Found] ${req.method} ${req.originalUrl} - ${error.message}`);
+    } else if (error.statusCode === 500 || process.env.NODE_ENV === 'development') {
         logger.error(`[API Error] ${error.message}`, {
             path: req.originalUrl,
             method: req.method,

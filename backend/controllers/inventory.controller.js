@@ -1,7 +1,8 @@
 const Inventory = require("../models/inventory.model");
+const ApiError = require("../utils/ApiError");
 
 // Add new stock item
-const addStockItem = async (req, res) => {
+const addStockItem = async (req, res, next) => {
     try {
         const { name, category, quantity, unit, reorderLevel, supplier, costPerUnit } = req.body;
 
@@ -18,12 +19,12 @@ const addStockItem = async (req, res) => {
         await newItem.save();
         res.status(201).json({ success: true, data: newItem });
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message });
+        next(error);
     }
 };
 
 // Get all inventory items
-const getInventory = async (req, res) => {
+const getInventory = async (req, res, next) => {
     try {
         const { page = 1, limit = 10 } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -45,12 +46,12 @@ const getInventory = async (req, res) => {
             }
         });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        next(error);
     }
 };
 
 // Update stock quantity or details
-const updateStock = async (req, res) => {
+const updateStock = async (req, res, next) => {
     try {
         const { id } = req.params;
         const updateData = req.body;
@@ -62,33 +63,33 @@ const updateStock = async (req, res) => {
         const updatedItem = await Inventory.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
 
         if (!updatedItem) {
-            return res.status(404).json({ success: false, message: "Item not found" });
+            throw new ApiError(404, "Item not found");
         }
 
         res.status(200).json({ success: true, data: updatedItem });
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message });
+        next(error);
     }
 };
 
 // Delete stock item
-const deleteStockItem = async (req, res) => {
+const deleteStockItem = async (req, res, next) => {
     try {
         const { id } = req.params;
         const deletedItem = await Inventory.findByIdAndDelete(id);
 
         if (!deletedItem) {
-            return res.status(404).json({ success: false, message: "Item not found" });
+            throw new ApiError(404, "Item not found");
         }
 
         res.status(200).json({ success: true, message: "Item deleted successfully" });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        next(error);
     }
 };
 
 // Get stock reports
-const getStockReports = async (req, res) => {
+const getStockReports = async (req, res, next) => {
     try {
         const allItems = await Inventory.find();
 
@@ -104,7 +105,7 @@ const getStockReports = async (req, res) => {
 
         res.status(200).json({ success: true, data: stats });
     } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        next(error);
     }
 };
 
