@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -76,11 +76,11 @@ const AdminReports = () => {
         fetchTopSellingItems, fetchProfitLoss, fetchOrdersReport
     } = useReportStore();
 
-    const [filter, setFilter]         = useState("monthly");
-    const [startDate, setStartDate]   = useState("");
-    const [endDate, setEndDate]       = useState("");
-    const [useCustom, setUseCustom]   = useState(false);
-    const [activeTab, setActiveTab]   = useState("sales");
+    const [filter, setFilter] = useState("monthly");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+    const [useCustom, setUseCustom] = useState(false);
+    const [activeTab, setActiveTab] = useState("sales");
 
     /* Load all data */
     const loadAll = useCallback((f, s, e) => {
@@ -95,7 +95,7 @@ const AdminReports = () => {
 
     useEffect(() => {
         loadAll(filter, "", "");
-    }, []);
+    }, [filter, loadAll]);
 
     const handlePresetFilter = (f) => {
         setFilter(f);
@@ -125,8 +125,8 @@ const AdminReports = () => {
 
     /* Stats */
     const totalSalesRevenue = salesData.reduce((s, d) => s + d.totalSales, 0);
-    const totalOrders       = salesData.reduce((s, d) => s + d.orderCount, 0);
-    const totalItemsSold    = topItemsData.reduce((s, d) => s + d.totalQuantity, 0);
+    const totalOrders = salesData.reduce((s, d) => s + d.orderCount, 0);
+    const totalItemsSold = topItemsData.reduce((s, d) => s + d.totalQuantity, 0);
 
     return (
         <div className="p-4 md:p-6 space-y-6 bg-background min-h-screen">
@@ -172,11 +172,10 @@ const AdminReports = () => {
                             <button
                                 key={f}
                                 onClick={() => handlePresetFilter(f)}
-                                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${
-                                    filter === f && !useCustom
+                                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${filter === f && !useCustom
                                         ? "bg-zinc-900 text-white border-zinc-900 dark:bg-white dark:text-zinc-900"
                                         : "border-border text-muted-foreground hover:text-foreground hover:border-foreground"
-                                }`}
+                                    }`}
                             >
                                 {f.charAt(0).toUpperCase() + f.slice(1)}
                             </button>
@@ -217,10 +216,10 @@ const AdminReports = () => {
             {/* ─── Summary Cards ─── */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: "Total Revenue",  value: `Rs ${profitLossData.totalRevenue?.toLocaleString() || 0}`, icon: DollarSign, color: "blue" },
-                    { label: "Net Profit",      value: `Rs ${profitLossData.profit?.toLocaleString() || 0}`,       icon: TrendingUp, color: "teal" },
-                    { label: "Total Orders",    value: profitLossData.orderCount || 0,                             icon: Calendar,   color: "amber" },
-                    { label: "Items Sold",      value: totalItemsSold,                                             icon: Package,    color: "purple" },
+                    { label: "Total Revenue", value: `Rs ${profitLossData.totalRevenue?.toLocaleString() || 0}`, icon: DollarSign, color: "blue" },
+                    { label: "Net Profit", value: `Rs ${profitLossData.profit?.toLocaleString() || 0}`, icon: TrendingUp, color: "teal" },
+                    { label: "Total Orders", value: profitLossData.orderCount || 0, icon: Calendar, color: "amber" },
+                    { label: "Items Sold", value: totalItemsSold, icon: Package, color: "purple" },
                 ].map(({ label, value, icon: Icon, color }) => (
                     <Card key={label} className={`border-l-4 border-l-${color}-500`}>
                         <CardHeader className="pb-2 pt-4 px-4">
@@ -445,7 +444,7 @@ const AdminReports = () => {
                         <p className="sub">Period: {dateLabel} — Generated {new Date().toLocaleString()}</p>
                         <div className="meta">
                             <div className="stat"><div className="label">Total Orders</div><div className="value">{ordersData.length}</div></div>
-                            <div className="stat"><div className="label">Total Revenue</div><div className="value">Rs {ordersData.reduce((s,o)=>s+(o.totalAmount||0),0).toLocaleString()}</div></div>
+                            <div className="stat"><div className="label">Total Revenue</div><div className="value">Rs {ordersData.reduce((s, o) => s + (o.totalAmount || 0), 0).toLocaleString()}</div></div>
                         </div>
                         <table>
                             <thead>
@@ -462,7 +461,7 @@ const AdminReports = () => {
                             <tbody>
                                 {ordersData.map((o) => (
                                     <tr key={o._id}>
-                                        <td style={{fontFamily:'monospace',fontSize:'11px'}}>{o.orderId || o._id?.slice(-8)}</td>
+                                        <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{o.orderId || o._id?.slice(-8)}</td>
                                         <td>{new Date(o.createdAt).toLocaleDateString()}</td>
                                         <td>{o.clientName || '—'}</td>
                                         <td>{o.type}</td>
@@ -554,7 +553,7 @@ const AdminReports = () => {
                                 <tr><td>Gross Profit</td><td>Rs {profitLossData.profit?.toLocaleString()}</td></tr>
                                 <tr><td>Total Orders</td><td>{profitLossData.orderCount}</td></tr>
                                 <tr><td>Avg Order Value</td><td>Rs {profitLossData.orderCount > 0 ? (profitLossData.totalRevenue / profitLossData.orderCount).toFixed(2) : "0.00"}</td></tr>
-                                <tr><td>Profit Margin</td><td>{profitLossData.totalRevenue > 0 ? ((profitLossData.profit / profitLossData.totalRevenue)*100).toFixed(1) : "0"}%</td></tr>
+                                <tr><td>Profit Margin</td><td>{profitLossData.totalRevenue > 0 ? ((profitLossData.profit / profitLossData.totalRevenue) * 100).toFixed(1) : "0"}%</td></tr>
                             </tbody>
                         </table>
                         <footer>Tasty Station POS — Confidential</footer>
@@ -592,9 +591,9 @@ const AdminReports = () => {
                                 </div>
                                 <div className="p-4 space-y-3">
                                     {[
-                                        ["Total Orders",       profitLossData.orderCount],
+                                        ["Total Orders", profitLossData.orderCount],
                                         ["Average Order Value", `Rs ${profitLossData.orderCount > 0 ? (profitLossData.totalRevenue / profitLossData.orderCount).toFixed(2) : "0.00"}`],
-                                        ["Profit Margin",      `${profitLossData.totalRevenue > 0 ? ((profitLossData.profit / profitLossData.totalRevenue)*100).toFixed(1) : "0"}%`],
+                                        ["Profit Margin", `${profitLossData.totalRevenue > 0 ? ((profitLossData.profit / profitLossData.totalRevenue) * 100).toFixed(1) : "0"}%`],
                                     ].map(([label, value]) => (
                                         <div key={label} className="flex justify-between items-center py-2 border-b border-dashed last:border-0">
                                             <span className="text-muted-foreground text-sm">{label}</span>

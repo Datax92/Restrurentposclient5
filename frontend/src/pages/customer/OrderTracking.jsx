@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import axiosInstance from "@/axios/axiosInstace";
 import { getSocket, connectSocket } from "@/config/socket.config";
@@ -9,10 +9,10 @@ import {
 
 /* ── status config ── */
 const STATUSES = [
-    { key: "Pending",    label: "Order Received",  icon: Clock,         color: "text-amber-400",    bg: "bg-amber-500/20",  border: "border-amber-500" },
-    { key: "Preparing",  label: "Being Prepared",  icon: ChefHat,       color: "text-blue-400",     bg: "bg-blue-500/20",   border: "border-blue-500" },
-    { key: "Ready",      label: "Ready to Collect!", icon: Package,     color: "text-green-400",    bg: "bg-green-500/20",  border: "border-green-500" },
-    { key: "Completed",  label: "Completed",        icon: CheckCircle2,  color: "text-teal-400",     bg: "bg-teal-500/20",   border: "border-teal-500" },
+    { key: "Pending", label: "Order Received", icon: Clock, color: "text-amber-400", bg: "bg-amber-500/20", border: "border-amber-500" },
+    { key: "Preparing", label: "Being Prepared", icon: ChefHat, color: "text-blue-400", bg: "bg-blue-500/20", border: "border-blue-500" },
+    { key: "Ready", label: "Ready to Collect!", icon: Package, color: "text-green-400", bg: "bg-green-500/20", border: "border-green-500" },
+    { key: "Completed", label: "Completed", icon: CheckCircle2, color: "text-teal-400", bg: "bg-teal-500/20", border: "border-teal-500" },
 ];
 const CANCELLED = { key: "Cancelled", label: "Order Cancelled", icon: XCircle, color: "text-red-400", bg: "bg-red-500/20", border: "border-red-500" };
 
@@ -21,14 +21,14 @@ const getStatusIndex = (s) => STATUSES.findIndex(st => st.key === s);
 const Rs = (n) => `Rs ${Number(n).toLocaleString()}`;
 
 export default function OrderTracking() {
-    const { orderId }     = useParams();
-    const [order,    setOrder]   = useState(null);
-    const [loading,  setLoading] = useState(true);
-    const [error,    setError]   = useState("");
-    const [pulse,    setPulse]   = useState(false);   // flash on update
+    const { orderId } = useParams();
+    const [order, setOrder] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [pulse, setPulse] = useState(false);   // flash on update
 
     /* ── fetch order ── */
-    const fetchOrder = async () => {
+    const fetchOrder = useCallback(async () => {
         try {
             const res = await axiosInstance.get(`/orders/track/${orderId}`);
             setOrder(res.data.order);
@@ -38,7 +38,7 @@ export default function OrderTracking() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [orderId]);
 
     /* ── connect socket & join order room ── */
     useEffect(() => {
@@ -76,7 +76,7 @@ export default function OrderTracking() {
                 socket.off("orderStatusUpdate");
             }
         };
-    }, [orderId]);
+    }, [fetchOrder, orderId]);
 
     /* ── request notification permission ── */
     useEffect(() => {
@@ -87,10 +87,10 @@ export default function OrderTracking() {
 
     /* ── RENDER ── */
     const currentStatus = order?.status;
-    const isCancelled   = currentStatus === "Cancelled";
-    const statusConf    = isCancelled ? CANCELLED : (STATUSES.find(s => s.key === currentStatus) || STATUSES[0]);
-    const statusIndex   = getStatusIndex(currentStatus);
-    const StatusIcon    = statusConf.icon;
+    const isCancelled = currentStatus === "Cancelled";
+    const statusConf = isCancelled ? CANCELLED : (STATUSES.find(s => s.key === currentStatus) || STATUSES[0]);
+    const statusIndex = getStatusIndex(currentStatus);
+    const StatusIcon = statusConf.icon;
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center px-4 py-10">
@@ -163,16 +163,15 @@ export default function OrderTracking() {
                                 />
                                 <div className="space-y-8 relative">
                                     {STATUSES.map((s, idx) => {
-                                        const done   = statusIndex >= idx;
+                                        const done = statusIndex >= idx;
                                         const active = statusIndex === idx;
-                                        const Ic     = s.icon;
+                                        const Ic = s.icon;
                                         return (
                                             <div key={s.key} className="flex items-start gap-4 pl-0">
-                                                <div className={`size-8 rounded-full flex items-center justify-center shrink-0 z-10 border-2 transition-all ${
-                                                    done
+                                                <div className={`size-8 rounded-full flex items-center justify-center shrink-0 z-10 border-2 transition-all ${done
                                                         ? `${s.bg} ${s.border}`
                                                         : "bg-zinc-800 border-zinc-600"
-                                                }`}>
+                                                    }`}>
                                                     <Ic className={`size-4 ${done ? s.color : "text-zinc-600"}`} />
                                                 </div>
                                                 <div className="pt-0.5">

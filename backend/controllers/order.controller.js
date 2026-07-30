@@ -430,7 +430,7 @@ const placePublicOrder = async (req, res, next) => {
         try {
             const io = getIo();
             io.emit("newOrder", populated);
-        } catch (e) { /* non-fatal */ }
+        } catch { /* non-fatal */ }
 
         res.status(201).json({ success: true, order: populated });
     } catch (error) {
