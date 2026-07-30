@@ -9,20 +9,6 @@ const { validateCategory, validateMenuItem } = require("../middlewares/validator
 
 const { cacheMiddleware } = require("../middlewares/cache.middleware");
 
-const handleCategoryOrItemAlias = (req, res, next, handler) => {
-    const baseUrl = req.baseUrl || "";
-
-    if (baseUrl.endsWith("/categories")) {
-        return handler(req, res, next);
-    }
-
-    if (baseUrl.endsWith("/items")) {
-        return handler(req, res, next);
-    }
-
-    return next();
-};
-
 router.route("/")
     .get((req, res, next) => {
         const baseUrl = req.baseUrl || "";
