@@ -21,19 +21,28 @@ import {
     Fingerprint,
     Shield,
     Sparkles,
-    User,
     KeyRound,
     Smartphone,
     Globe,
+    ChevronDown,
+    ChevronUp,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '../../store/useAuthStore';
 
+
+const DEMO_ACCOUNTS = [
+    { role: 'Admin', email: 'admin@pos.com', password: 'password123' },
+    { role: 'Manager', email: 'sarah@pos.com', password: 'password123' },
+    { role: 'Cashier', email: 'john@pos.com', password: 'password123' },
+    { role: 'Waiter', email: 'robert@pos.com', password: 'password123' },
+    { role: 'Kitchen', email: 'david@pos.com', password: 'password123' },
+    { role: 'Client', email: 'sam@client.com', password: 'password123' },
+];
+
 const Login = () => {
 
-
     const { login, isLoading } = useAuthStore();
-
 
     const [formData, setFormData] = useState({
         email: '',
@@ -41,6 +50,8 @@ const Login = () => {
         rememberMe: false,
     });
     const [showPassword, setShowPassword] = useState(false);
+    const [showDemoAccounts, setShowDemoAccounts] = useState(false);
+
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -65,8 +76,13 @@ const Login = () => {
         // Add forgot password logic here
     };
 
+    const fillDemoAccount = (account) => {
+        setFormData(prev => ({ ...prev, email: account.email, password: account.password }));
+    };
+
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-white to-cyan-100 dark:from-gray-950 dark:via-gray-900 dark:to-cyan-950/30 transition-colors duration-300">
+        <div className="relative min-h-screen bg-gradient-to-br from-cyan-50 via-white to-cyan-100 dark:from-gray-950 dark:via-gray-900 dark:to-cyan-950/30 transition-colors duration-300">
             {/* Background Patterns */}
             <div className="absolute inset-0 overflow-hidden">
                 <div className="absolute -top-40 -right-40 w-80 h-80 bg-cyan-300/10 rounded-full blur-3xl dark:bg-cyan-500/10" />
@@ -247,6 +263,37 @@ const Login = () => {
                                 </div>
                             </CardFooter>
                         </form>
+
+                        {/* Demo accounts — tucked into a disclosure instead of a raw table */}
+                        <div className="mx-6 mb-6 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 overflow-hidden">
+                            <button
+                                type="button"
+                                onClick={() => setShowDemoAccounts(!showDemoAccounts)}
+                                className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-cyan-700 dark:hover:text-cyan-400 transition-colors"
+                            >
+                                <span className="flex items-center gap-2">
+                                    <KeyRound className="size-3.5" />
+                                    Demo login credentials
+                                </span>
+                                {showDemoAccounts ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+                            </button>
+
+                            {showDemoAccounts && (
+                                <div className="px-4 pb-4 space-y-1.5">
+                                    {DEMO_ACCOUNTS.map((account) => (
+                                        <button
+                                            key={account.role}
+                                            type="button"
+                                            onClick={() => fillDemoAccount(account)}
+                                            className="w-full flex items-center justify-between px-3 py-2 rounded-md bg-white dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 hover:border-cyan-300 dark:hover:border-cyan-700 text-left transition-colors"
+                                        >
+                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{account.role}</span>
+                                            <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">{account.email}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </Card>
 
                     {/* Footer Links */}
